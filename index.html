@@ -1,0 +1,133 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Hand Gesture Recognition</title>
+
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      text-align: center;
+      background: #f0f4ff;
+      padding: 30px;
+      color: #222;
+    }
+
+    main {
+      max-width: 650px;
+      margin: auto;
+      background: white;
+      padding: 25px;
+      border-radius: 15px;
+    }
+
+    button {
+      background: #3157d5;
+      color: white;
+      padding: 12px 20px;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+      font-size: 16px;
+    }
+
+    #webcam-container {
+      margin: 20px auto;
+    }
+
+    canvas {
+      max-width: 100%;
+      border-radius: 10px;
+    }
+
+    .prediction {
+      background: #eef2ff;
+      padding: 12px;
+      margin: 8px;
+      border-radius: 8px;
+    }
+  </style>
+</head>
+
+<body>
+  <main>
+    <h1>Hand Gesture Recognition</h1>
+    <p>Show your hand to recognize Thumbs Up, Peace Sign, or Closed Fist.</p>
+
+    <button id="start-button" onclick="startModel()">
+      Start Camera & Model
+    </button>
+
+    <p id="status">Click the button to start.</p>
+    <div id="webcam-container"></div>
+    <div id="label-container"></div>
+  </main>
+
+  <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@1.3.1/dist/tf.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@teachablemachine/image@0.8/dist/teachablemachine-image.min.js"></script>
+
+  <script>
+    const MODEL_URL = "./tm-my-image-model/";
+    let model, webcam;
+
+    async function startModel() {
+      const button = document.getElementById("start-button");
+      const status = document.getElementById("status");
+
+      button.disabled = true;
+      status.textContent = "Loading model...";
+
+      try {
+        model = await tmImage.load(
+          MODEL_URL + "model.json",
+          MODEL_URL + "metadata.json"
+        );
+
+        webcam = new tmImage.Webcam(320, 320, true);
+        await webcam.setup();
+        await webcam.play();
+
+        document.getElementById("webcam-container")
+          .replaceChildren(webcam.canvas);
+
+        const labels = document.getElementById("label-container");
+        labels.innerHTML = "";
+
+        for (let i = 0; i < model.getTotalClasses(); i++) {
+          const item = document.createElement("div");
+          item.className = "prediction";
+          labels.appendChild(item);
+        }
+
+        status.textContent = "Model is running!";
+        button.textContent = "Camera Started";
+        window.requestAnimationFrame(predict);
+      } catch (error) {
+        console.error(error);
+        status.textContent =
+          "Error loading model or camera. Check camera permission and model files.";
+        button.disabled = false;
+      }
+    }
+
+    async function predict() {
+      webcam.update();
+
+      const predictions = await model.predict(webcam.canvas);
+      predictions.sort((a, b) => b.probability - a.probability);
+
+      const labels = document.getElementById("label-container");
+
+      predictions.forEach((item, i) => {
+        labels.children[i].textContent =
+          item.className + ": " +
+          (item.probability * 100).toFixed(1) + "%";
+      });
+
+      window.requestAnimationFrame(predict);
+    }
+  </script>
+</body>
+</html>
